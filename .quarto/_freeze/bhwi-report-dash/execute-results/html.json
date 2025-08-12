@@ -1,0 +1,21 @@
+{
+  "hash": "96cb171dcc96c63d3d65c9020019f876",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Untitled\"\noutput: \n   flexdashboard::flex_dashboard:\n     orientation: rows\n     vertical_layout: fill\n     theme: cosmo\n     source_code: embed\n     self_contained: true\nruntime: shiny\neditor: source\nexecute: \n  echo: false\n  warning: false\n  message: false\n  error: false\n---\n\n\n\n\n::: {.cell context='data'}\n\n:::\n\n\n# Home\n\n## Inputs {.sidebar}\n\n\n::: {.cell context='interactive'}\n::: {.cell-output-display}\n\n```{=html}\n<div class=\"form-group shiny-input-container\">\n<label class=\"control-label\" id=\"fiscal_quarter_programs-label\" for=\"fiscal_quarter_programs\">Select Fiscal Quarter(s):</label>\n<div>\n<select class=\"shiny-input-select form-control\" id=\"fiscal_quarter_programs\" multiple=\"multiple\"><option value=\"FY2024 Q2\" selected>FY2024 Q2</option>\n<option value=\"FY2024 Q3\" selected>FY2024 Q3</option>\n<option value=\"FY2024 Q4\" selected>FY2024 Q4</option>\n<option value=\"FY2025 Q1\" selected>FY2025 Q1</option>\n<option value=\"FY2025 Q2\" selected>FY2025 Q2</option>\n<option value=\"FY2025 Q3\" selected>FY2025 Q3</option>\n<option value=\"FY2025 Q4\" selected>FY2025 Q4</option>\n<option value=\"FY2026 Q1\" selected>FY2026 Q1</option></select>\n<script type=\"application/json\" data-for=\"fiscal_quarter_programs\">{\"plugins\":[\"selectize-plugin-a11y\"]}</script>\n</div>\n</div>\n```\n\n:::\n:::\n\n\n\n\n",
+    "supporting": [
+      "bhwi-report-dash_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {
+      "include-in-header": [
+        "<link href=\"bhwi-report-dash_files/libs/selectize-0.15.2/css/selectize.bootstrap3.css\" rel=\"stylesheet\" />\n<script src=\"bhwi-report-dash_files/libs/selectize-0.15.2/js/selectize.min.js\"></script>\n<script src=\"bhwi-report-dash_files/libs/selectize-0.15.2/accessibility/js/selectize-plugin-a11y.min.js\"></script>\n"
+      ]
+    },
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

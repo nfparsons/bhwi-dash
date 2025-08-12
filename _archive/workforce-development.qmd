@@ -1,0 +1,695 @@
+---
+title: ""
+author: ""
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+format:
+  docx: default
+  html: 
+    toc: true
+    embed-resources: true
+  pdf: default
+editor: source
+execute:
+    echo: false
+    eval: true
+    message: false
+    warning: false
+    error: false
+---
+
+```{r}
+#| label: set-working-directory
+#| message: false
+#| warning: false
+#| error: false
+
+require(here)
+here::i_am("_archive/_anchor.R")
+```
+
+```{r}
+#| label: load-packages
+#| message: false
+#| warning: false
+#| error: false
+
+# -----------------------------------------------------------------------------
+# 1. Setup/Dependencies (Package Manager)
+# -----------------------------------------------------------------------------
+
+if (!require("pacman")) {
+  install.packages("pacman", repos = "https://cran.rstudio.org")
+}
+library(pacman)
+
+
+# -----------------------------------------------------------------------------
+# 2. Package Loading (Streamlined and Reorganized)
+# -----------------------------------------------------------------------------
+
+# Core/Essential Packages (General R use)
+p_load(
+  here,          # Folder/file management
+  conflicted,    # Package conflict management
+  english,       # Translate integers into text
+  labelled,      # Manipulate variable/value metadata
+  rlang,         # Functions for base R and tidyverse features
+  xfun,          # Miscellaneous functions
+  rio,           # Universal import/export
+  archive,       # Archive files
+  filesstrings,  # String manipulation
+  googledrive,   # Interact with Google Drive
+  reprex,        # Reproducible examples
+  knitr        # Dynamic report generation
+)
+
+# Data Manipulation and Transformation (Tidyverse first, then others)
+p_load(
+  tidyverse,      # Tidy data handling and analysis (includes dplyr, tidyr, ggplot2, etc.)
+  janitor,       # Data cleaning and examination
+  bestNormalize, # Data normalization
+  mice,          # Multivariate imputation
+  skimr          # Summary statistics
+)
+
+# Tables
+p_load(
+  gt,            # Presentation-ready tables
+  gtsummary,     # Publication-ready tables
+  gtExtras,      # Additional gt functions
+  flextable      # MS Office compatible tables
+)
+
+# Survey Analysis
+p_load(
+  survey,        # Survey analysis
+  srvyr,         # Survey analysis
+  anesrake       # ANES Raking
+)
+
+# Spatial Analysis (sf preferred, then others)
+p_load(
+  sf,            # Simple features (primary spatial package)
+  sfd,           # Space-Filling Design Library
+  sftime,        # Simple Features Time Series
+  spdep,         # Spatial dependence
+  raster,        # Raster data handling
+  CARBayes,      # Bayesian spatial modeling
+  tidycensus,    # US Census data
+  tidygeocoder,  # Geocoding
+  geojsonio,     # GeoJSON/TopoJSON conversion
+  geogrid,       # Geospatial data
+  ggspatial,     # Spatial visualization
+  tmap,          # Thematic maps
+  tmaptools,     # Thematic map tools
+  osmdata,       # OpenStreetMap data
+  OpenStreetMap, # OpenStreetMap data
+  ggmap,         # Spatial visualization (Consider if needed with tmap)
+  maptiles,      # Map tiles
+  tidyterra,     # OpenStreetMap data
+  tigris,        # US Census TIGER/Line shapefiles
+  maps          # Draw geographical maps (Consider if needed with sf/tmap)
+)
+
+# Time Series
+p_load(
+  xts,           # Extensible time series
+  spacetime,     # Spatio-temporal data
+  tsibble,       # Tidy temporal data frames
+  slider,        # Sliding window functions
+  imputeTS,      # Time series imputation
+  feasts,        # Time series feature extraction
+  forecast,      # Time series forecasting
+  trending,      # Trending analysis
+  tibbletime     # Time-aware tibbles
+)
+
+# Visualization (ggplot2 related first)
+p_load(
+  scales,        # Graphical scales (often used with ggplot2)
+  systemfonts,   # System fonts
+  extrafont,     # Font management
+  showtext,      # Easy font use in plots
+  patchwork,     # Plot composition
+  ggpp,          # ggplot2 extensions
+  ggExtra,       # ggplot2 enhancements
+  ggalt,         # Extra ggplot2 geoms/stats
+  ggpubr,        # Easy plot creation
+  ggridges,      # Ridgeline plots
+  ggfittext,     # Improved text rendering
+  ggtext,         # Improved text rendering
+  ggthemes,       # ggplot2 themes
+  ggsci,          # ggplot2 color palettes
+  scico,          # Scientific color maps
+  hrbrthemes,     # ggplot2 themes
+  viridis         # ggplot2 color palettes
+)
+
+# Visualization (GitHub)
+p_load_gh(
+  "AliciaSchep/gglabeller",       # Easy plot labeling
+  "MarcellGranat/ggProfessional", # Professional ggplot2
+  "mattcowgill/ggannotate",       # Easy plot annotation
+  "amirmasoudabdol/sfthemes"     # Simple features themes
+)
+
+# Visualization (Other)
+p_load(
+  # extrafont,  # Font tools (Consider if needed with showtext)
+  magick,        # Image processing (Consider if actively used)
+  xkcd,          # xkcd theme (Consider if actively used)
+  harrypotter    # Harry Potter theme (Consider if actively used)
+)
+
+# Compatibility & Other
+p_load(
+  officedown,    # Microsoft Office compatibility
+  DBI,           # Database interaction
+  units,         # Measurement units
+  yardstick,     # Model metrics
+  googlesheets4, # Google Sheets interaction
+  surveillance   # Epidemic modeling
+)
+
+
+# -----------------------------------------------------------------------------
+# 3. Conflict Resolution (After loading)
+# -----------------------------------------------------------------------------
+
+conflicts_prefer(
+  dplyr::filter, 
+  dplyr::first,
+  dplyr::summarize, 
+  dplyr::select, 
+  janitor::clean_names,
+  janitor::chisq.test,
+  rio::export,
+  tidyselect::starts_with,
+  tidygeocoder::geocode
+)
+
+
+# -----------------------------------------------------------------------------
+# 4. Confirmation output
+# -----------------------------------------------------------------------------
+
+str_glue("Packages loaded. \n")
+```
+
+```{r}
+#| label: set-options
+#| message: false
+#| warning: false
+#| error: false
+
+# -----------------------------------------------------------------------------
+# 1. Setup/Dependencies
+# -----------------------------------------------------------------------------
+
+# Install packages if not already installed (using a helper function)
+if (!require("pacman")) {
+  install.packages("pacman", repos = "https://cran.rstudio.org")
+}
+library(pacman)
+
+p_load("magick", "janitor", "dplyr", "tidycensus", "sysfonts", "rscopus", 
+       "gtsummary", "flextable", "showtext", "ggmap", "stringr")
+
+
+# -----------------------------------------------------------------------------
+# 2. Global Parameters/Constants
+# -----------------------------------------------------------------------------
+
+# API Keys (Store securely, ideally in environment variables)
+elsevier_api_key <- Sys.getenv("ELSEVIER_API_KEY")  # Get from environment
+census_api_key <- Sys.getenv("CENSUS_API_KEY") # Get from environment
+google_api_key <- Sys.getenv("GOOGLE_API_KEY") # Get from environment
+googlegeocode_api_key <- Sys.getenv("GOOGLEGEOCODE_API_KEY") # Get from environment
+
+# Check if API keys are set (important for security)
+if (elsevier_api_key == "") {
+  stop("Elsevier API key not found. Set the ELSEVIER_API_KEY environment variable.")
+}
+if (census_api_key == "") {
+  stop("Census API key not found. Set the CENSUS_API_KEY environment variable.")
+}
+if (google_api_key == "") {
+  stop("Google API key not found. Set the GOOGLE_API_KEY environment variable.")
+}
+if (googlegeocode_api_key == "") {
+  stop("Google GeoCode API key not found. Set the GOOGLEGEOCODE_API_KEY environment variable.")
+}
+
+# GIS repo (set for your own use)
+gis_repo <- Sys.getenv("GIS_SHAPEFILE_REPO")
+
+# Check if GIS repo is set
+if (gis_repo == "") {
+  stop("GIS shapefile repository not found. Set the GIS_SHAPEFILE_REPO environment variable using the following code: `gis_repo <- 'path/to/shapefiles/folder', or add the following code to your .Rprofile using `file.edit(file.path('~', '.Rprofile'))`: `Sys.setenv(DATA_REPO = 'path/to/shapefiles/folder')`")
+}
+
+# Data repo (set for your own use)
+data_repo <- Sys.getenv("DATA_REPO")
+
+# Check if GIS repo is set
+if (data_repo == "") {
+  stop("Data repository not found. Set the DATA_REPO environment variable using the following code: `data_repo <- 'path/to/data/folder'`, or add the following code to your .Rprofile using `file.edit(file.path('~', '.Rprofile'))`: `Sys.setenv(DATA_REPO = 'path/to/data/folder')`")
+}
+
+# Other Global Settings
+set.seed(13) # Random seed for reproducibility
+options(scipen = 9999) # Large number for scientific notation preference
+sf_use_s2(FALSE) # Use sf package for spatial operations
+
+
+# -----------------------------------------------------------------------------
+# 3. Themes and Table Defaults
+# -----------------------------------------------------------------------------
+
+# gtsummary Themes
+gtsummary::theme_gtsummary_journal(journal = "jama")
+gtsummary::theme_gtsummary_compact()
+
+# flextable Defaults (Font check!)
+flextable::set_flextable_defaults(
+  table.layout = "autofit", 
+  font.size = 10, 
+  font.family = "Times New Roman", # Ensure this font is available!
+  padding.top = 0, 
+  padding.bottom = 0
+)
+
+# custom color palette
+mchd_county_logo_blue = "#326195"
+mchd_county_logo_green = "#48773C"
+mchd_green = "#385D2F"
+mchd_claret = "#8C183E"
+mchd_deep_saffron = "#F79232"
+mchd_copper_rose = "#9b6167"
+mchd_light_cerulean = "#72CCD4"
+
+perma_list <- c("data_repo", "gis_repo", "mchd_claret", "mchd_copper_rose", "mchd_county_logo_blue", "mchd_county_logo_green", "mchd_deep_saffron", "mchd_green", "mchd_light_cerulean")
+
+
+# -----------------------------------------------------------------------------
+# 4. Font Loading
+# -----------------------------------------------------------------------------
+
+# Enable showtext for custom fonts
+showtext::showtext_auto() 
+
+
+# -----------------------------------------------------------------------------
+# 5. API Key Registration
+# -----------------------------------------------------------------------------
+
+# Register API keys (after setting them as environment variables)
+
+# tidycensus
+tidycensus::census_api_key(census_api_key, overwrite = TRUE) 
+
+# Elsevier 
+rscopus::set_api_key(elsevier_api_key)  
+
+# Google Maps 
+ggmap::register_google(key = google_api_key) 
+
+
+# -----------------------------------------------------------------------------
+# 6. Confirmation output
+# -----------------------------------------------------------------------------
+
+stringr::str_glue("Options set. \n")
+```
+
+```{r}
+#| label: load-population-data
+#| message: false
+#| warning: false
+#| error: false
+
+us_std_pop <- import(
+  file.path("~/R-Home/data-repo/population_objects/us_std_pop_2000.csv")
+)
+
+oregon_pop <- import(
+  file.path("~/R-Home/data-repo/population_objects/oregon_state_pop.csv")
+)
+
+multnomah_pop <- import(
+  file.path("~/R-Home/data-repo/population_objects/multnomah_county_pop.csv")
+)
+```
+
+--------------------------------------------------------------------------------
+
+```{r}
+#| label: read-google-sheet
+#| message: false
+#| warning: false
+#| error: false
+
+# Define the URL of your Google Sheets file
+sheets_url <- "https://docs.google.com/spreadsheets/d/1lRMyvGBAXcUaQtmBxXDFyrs889L505OFRRyvC0zQJtg/edit?usp=drive_link"
+
+# Authenticate and get the file from Google Drive
+# The first time you run this, a browser window will open for authentication.
+# Subsequent calls will likely use a cached token.
+my_sheet <- googledrive::drive_get(sheets_url)
+
+# Read the data from the Google Sheet into an R data frame
+# The `googlesheets4` package is used for this step.
+data <- googlesheets4::read_sheet(my_sheet)
+
+# Rename the columns to be more concise and easier to work with.
+# The format is `new_name = "old_name"`.
+data <- data %>%
+  rename(
+    status = "Approval Status",
+    race = "Race", 
+    gender_identity = "Gender Identity",
+    sexual_orientation = "Sexual Orientation",
+    funding_for = "Please select the item you are requesting funding for:",
+    program = "Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.",
+    managers_approval = "Have you received your supervisor's or manager's approval for this request?",
+    represented_status = "Union/Representation Status of staff receiving/using the funding",
+    amount_approved = "Amount Approved"
+  )
+
+# Read the data from the "Funding Tracking" sheet, starting from the 5th row
+funding_data <- googlesheets4::read_sheet(my_sheet, sheet = "Funding Tracking", 
+                                          range = "A5:E", 
+                                          col_types = c(
+                                            "ccccn"
+                                          )) %>%
+
+# Rename the columns for the funding data to match the analysis script
+  rename(
+    date = `Date Funding was approved or Invoice received`, 
+    staff = `Staff using funding`, 
+    represented_status = `Represented Status`,
+    approved_for = `Approved for`,
+    amount_approved = `Amount Approved`
+  ) %>%
+
+# Clean data
+  filter(!is.na(date))
+```
+
+## Status of application
+
+```{r}
+#| label: tbl-status
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta Status`
+data %>% tabyl(status)
+```
+
+## Race distibution of applicants
+
+```{r}
+#| label: tbl-race
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta Race`
+data %>% tabyl(race)
+```
+
+## Gender identity of applicants
+
+```{r}
+#| label: tbl-gender-identity
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta GenderIdentity`
+data %>% tabyl(gender_identity)
+```
+
+## Sexual orientation of applicants
+
+```{r}
+#| label: tbl-sexual-orientation
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta SexualOrientation`
+data %>% tabyl(sexual_orientation)
+```
+
+## Requested funding for distribution
+
+```{r}
+#| label: tbl-fundingfor
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta fundingfor`
+data %>% tabyl(funding_for)
+```
+
+## Program
+
+```{r}
+#| label: tbl-program
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta Program`
+data %>% tabyl(program)
+```
+
+## Representation status
+
+```{r}
+#| label: tbl-represented-status
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta RepresentedStatus`
+data %>% tabyl(represented_status)
+```
+
+## Crosstabulation: Program vs. Represented status
+
+```{r}
+#| label: crosstab-program-represented
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `tab Program RepresentedStatus, col chi`
+data %>% tabyl(program, represented_status) %>% adorn_percentages("col")
+chisq.test(table(data$program, data$represented_status))
+```
+
+## Crosstabulation: Funding for vs. Program
+
+```{r}
+#| label: crosstab-fundingfor-program
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `tab Fundingfor Program, col chi`
+data %>% tabyl(funding_for, program) %>% adorn_percentages("col")
+chisq.test(table(data$funding_for, data$program))
+```
+
+## Data analysis of Only Approved applications
+
+```{r}
+#| label: approved-filter
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to `keep if Status=="Approved"`
+approved_grants <- data %>%
+  filter(status == "Approved")
+```
+
+### Application status (Approved)
+
+```{r}
+#| label: tbl-approved-status
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta Status`
+approved_grants %>% tabyl(status)
+```
+
+### Race distribution (Approved)
+
+```{r}
+#| label: tbl-approved-race
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta Race`
+approved_grants %>% tabyl(race)
+```
+
+### Gender identity distribution (Approved)
+
+```{r}
+#| label: tbl-approved-gender-identity
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta GenderIdentity`
+approved_grants %>% tabyl(gender_identity)
+```
+
+### Sexual orientation (Approved)
+
+```{r}
+#| label: tbl-approved-sexual-orientation
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta SexualOrientation`
+approved_grants %>% tabyl(sexual_orientation)
+```
+
+### Funding for (Approved)
+
+```{r}
+#| label: tbl-approved-fundingfor
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta fundingfor`
+approved_grants %>% tabyl(funding_for)
+```
+
+### Program (Approved)
+
+```{r}
+#| label: tbl-approved-program
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta Program`
+approved_grants %>% tabyl(program)
+```
+
+### Representation status (Approved)
+
+```{r}
+#| label: tbl-approved-represented-status
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta RepresentedStatus`
+approved_grants %>% tabyl(represented_status)
+```
+
+### Crosstabulation: Program vs. Represented status (Approved)
+
+```{r}
+#| label: crosstab-approved-program-represented
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `tab Program RepresentedStatus, col chi`
+approved_grants %>% tabyl(program, represented_status) %>% adorn_percentages("col")
+chisq.test(table(approved_grants$program, approved_grants$represented_status))
+```
+
+### Crosstabulation: Funding for vs. Program (Approved)
+
+```{r}
+#| label: crosstab-approved-fundingfor-program
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `tab Fundingfor Program, col chi`
+approved_grants %>% tabyl(funding_for, program) %>% adorn_percentages("col")
+chisq.test(table(approved_grants$funding_for, approved_grants$program))
+```
+
+## Funding Analysis
+
+### Representation status (Approved)
+
+```{r}
+#| label: tbl-funding-represented
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `ta RepresentedStatus`
+funding_data %>% tabyl(represented_status)
+```
+
+### Approved for (Approved)
+
+```{r}
+#| label: tbl-funding-approvedfor
+#| message: false
+#| warning: false
+#| error: false
+
+# Note: The `Approvedfor` variable was not in the previous script. This assumes it is present in the dataset.
+# Corresponds to: `ta Approvedfor`
+funding_data %>% tabyl(approved_for)
+```
+
+### Amount approved statistics (Approved)
+
+```{r}
+#| label: tbl-funding-amount
+#| message: false
+#| warning: false
+#| error: false
+
+# Corresponds to: `tabstat AmountApproved, stats (n min max median p25 p75)`
+funding_data %>%
+  summarise(
+    n = n(),
+    min = min(amount_approved, na.rm = TRUE),
+    max = max(amount_approved, na.rm = TRUE),
+    median = median(amount_approved, na.rm = TRUE),
+    p25 = quantile(amount_approved, 0.25, na.rm = TRUE),
+    p75 = quantile(amount_approved, 0.75, na.rm = TRUE)
+  )
+```
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+
+```{r}
+#| label: end
+#| message: false
+#| warning: false
+#| error: false
+
+
+```

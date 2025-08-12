@@ -1,0 +1,441 @@
+---
+title: "Behavioral Healthcare Workforce Incentives Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    theme: cosmo
+runtime: shiny
+editor: source
+---
+
+```{r}
+#| context: setup
+
+# -----------------------------------------------------------------------------
+# 1. Setup/Dependencies (Package Manager)
+# -----------------------------------------------------------------------------
+
+if (!require("pacman")) {
+  install.packages("pacman", repos = "[https://cran.rstudio.org](https://cran.rstudio.org)")
+}
+library(pacman)
+
+# Core/Essential Packages (General R use)
+p_load(
+  here,
+  conflicted,
+  english,
+  labelled,
+  rlang,
+  xfun,
+  rio,
+  archive,
+  filesstrings,
+  googledrive,
+  googlesheets4,
+  reprex,
+  knitr,
+  
+  # New packages for dashboard
+  flexdashboard, # The dashboard framework
+  shiny,         # For interactive components
+  DT,            # For interactive tables
+  lubridate,     # For date and time manipulation
+  stringr        # For string manipulation, used in cleaning
+)
+
+# Data Manipulation and Transformation (Tidyverse first, then others)
+p_load(tidyverse, janitor, bestNormalize, mice, skimr)
+
+# Tables
+p_load(gt, gtsummary, gtExtras, flextable)
+
+# Visualization (ggplot2 related first)
+p_load(
+  scales,
+  systemfonts,
+  extrafont,
+  showtext,
+  patchwork,
+  ggpp,
+  ggExtra,
+  ggalt,
+  ggpubr,
+  ggridges,
+  ggfittext,
+  ggtext,
+  ggthemes,
+  ggsci,
+  scico,
+  hrbrthemes,
+  xkcd,
+  harrypotter,
+  viridis
+)
+
+# Visualization (GitHub)
+p_load_gh(
+  "AliciaSchep/gglabeller",
+  "MarcellGranat/ggProfessional",
+  "mattcowgill/ggannotate",
+  "amirmasoudabdol/sfthemes"
+)
+
+# -----------------------------------------------------------------------------
+# 2. Conflict Resolution (After loading)
+# -----------------------------------------------------------------------------
+
+conflicts_prefer(
+  dplyr::filter,
+  dplyr::first,
+  dplyr::summarize,
+  dplyr::select,
+  janitor::clean_names,
+  janitor::chisq.test,
+  lubridate::year,
+  rio::export,
+  tidyselect::starts_with,
+  tidygeocoder::geocode
+)
+
+# -----------------------------------------------------------------------------
+# 3. Global Options, Themes, and Table Settings
+# -----------------------------------------------------------------------------
+
+# Global Options
+set.seed(13) # Random seed for reproducibility
+options(scipen = 9999) # Large number for scientific notation preference
+
+# gtsummary Themes
+gtsummary::theme_gtsummary_journal(journal = "jama")
+gtsummary::theme_gtsummary_compact()
+
+# flextable Defaults (Font check!)
+flextable::set_flextable_defaults(
+  table.layout = "autofit",
+  font.size = 10,
+  font.family = "Times New Roman",
+  padding.top = 0,
+  padding.bottom = 0
+)
+
+# custom color palette
+mchd_county_logo_blue = "#326195"
+mchd_county_logo_green = "#48773C"
+mchd_green = "#385D2F"
+mchd_claret = "#8C183E"
+mchd_deep_saffron = "#F79232"
+mchd_copper_rose = "#9b6167"
+mchd_light_cerulean = "#72CCD4"
+
+perma_list <- c(
+  "data_repo",
+  "gis_repo",
+  "mchd_claret",
+  "mchd_copper_rose",
+  "mchd_county_logo_blue",
+  "mchd_county_logo_green",
+  "mchd_deep_saffron",
+  "mchd_green",
+  "mchd_light_cerulean"
+)
+
+# Enable showtext for custom fonts
+showtext::showtext_auto()
+
+# -----------------------------------------------------------------------------
+# 4. Read Google Sheet and Prepare Data
+# -----------------------------------------------------------------------------
+
+sheets_url <- "https://docs.google.com/spreadsheets/d/1lRMyvGBAXcUaQtmBxXDFyrs889L505OFRRyvC0zQJtg/edit?usp=drive_link"
+my_sheet <- googledrive::drive_get(sheets_url)
+
+# Read the raw data and immediately fix the misspelling
+raw_data <- googlesheets4::read_sheet(my_sheet) %>%
+  mutate(Race = str_replace(Race, "Black of African American", "Black or African American"))
+
+# --- Grouping logic ---
+
+# Create a temporary program_clean column to count frequencies
+program_clean <- raw_data %>%
+  mutate(program_clean = str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+"))) %>%
+  pull(program_clean)
+
+# Find the top 9 programs from the cleaned data
+top_9_programs <- raw_data %>%
+  mutate(program_clean = str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+"))) %>%
+  count(program_clean) %>%
+  arrange(desc(n)) %>%
+  slice(1:9) %>%
+  pull(program_clean)
+
+# Find the top 5 races from the cleaned data
+top_5_races <- raw_data %>%
+  mutate(race_clean = str_trim(str_extract(`Race`, "^[^,]+"))) %>%
+  count(race_clean) %>%
+  arrange(desc(n)) %>%
+  slice(1:5) %>%
+  pull(race_clean)
+
+# Find the top 5 gender identities from the cleaned data
+top_5_genders <- raw_data %>%
+  mutate(gender_clean = str_trim(str_extract(`Gender Identity`, "^[^,]+"))) %>%
+  count(gender_clean) %>%
+  arrange(desc(n)) %>%
+  slice(1:5) %>%
+  pull(gender_clean)
+
+# Find the top 5 sexual orientations from the cleaned data
+top_5_orientations <- raw_data %>%
+  mutate(orientation_clean = str_trim(str_extract(`Sexual Orientation`, "^[^,]+"))) %>%
+  count(orientation_clean) %>%
+  arrange(desc(n)) %>%
+  slice(1:5) %>%
+  pull(orientation_clean)
+
+# Group programs, race, gender, and sexual orientation into top N or 'Other' and then select final columns
+data <- raw_data %>%
+  mutate(
+    # Date and fiscal quarter handling
+    date = as.Date(Timestamp),
+    fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
+    fiscal_quarter = factor(
+      paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)),
+      levels = unique(paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)))
+    ),
+    
+    # Program grouping
+    program_group = if_else(
+      str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+")) %in% top_9_programs,
+      str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+")),
+      "Other"
+    ),
+    
+    # Race grouping
+    race_group = if_else(
+      str_trim(str_extract(`Race`, "^[^,]+")) %in% top_5_races,
+      str_trim(str_extract(`Race`, "^[^,]+")),
+      "Other"
+    ),
+    
+    # Gender grouping
+    gender_group = if_else(
+      str_trim(str_extract(`Gender Identity`, "^[^,]+")) %in% top_5_genders,
+      str_trim(str_extract(`Gender Identity`, "^[^,]+")),
+      "Other"
+    ),
+    
+    # Sexual orientation grouping
+    sexual_orientation_group = if_else(
+      str_trim(str_extract(`Sexual Orientation`, "^[^,]+")) %in% top_5_orientations,
+      str_trim(str_extract(`Sexual Orientation`, "^[^,]+")),
+      "Other"
+    )
+  ) %>%
+  filter(!is.na(date)) %>%
+  select(
+    status = `Approval Status`,
+    date,
+    fiscal_quarter,
+    race = `Race`,
+    race_group,
+    gender_identity = `Gender Identity`,
+    gender_group,
+    sexual_orientation = `Sexual Orientation`,
+    sexual_orientation_group,
+    funding_for = `Please select the item you are requesting funding for:`,
+    program = `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+    program_group,
+    managers_approval = `Have you received your supervisor's or manager's approval for this request?`,
+    represented_status = `Union/Representation Status of staff receiving/using the funding`,
+    amount_approved = `Amount Approved`
+  )
+
+# Read and clean the funding data
+funding_data <- googlesheets4::read_sheet(my_sheet,
+                                         sheet = "Funding Tracking",
+                                         range = "A5:E",
+                                         col_types = "ccccn") %>%
+  select(
+    date = `Date Funding was approved or Invoice received`,
+    staff = `Staff using funding`,
+    represented_status = `Represented Status`,
+    approved_for = `Approved for`,
+    amount_approved = `Amount Approved`
+  ) %>%
+  filter(!is.na(date)) %>%
+  mutate(
+    date = mdy(date),
+    fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
+    fiscal_quarter = factor(
+      paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)),
+      levels = unique(paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)))
+    )
+  )
+```
+
+# Programs 
+
+## Inputs {.sidebar}
+
+```{r}
+#| label: programs-inputs
+#| context: interactive
+
+selectizeInput(
+  inputId = "fiscal_quarter_programs",
+  label = "Select Fiscal Quarter(s):",
+  choices = sort(unique(data$fiscal_quarter)),
+  selected = unique(data$fiscal_quarter), # Select all by default
+  multiple = TRUE
+)
+
+selectizeInput(
+  inputId = "program_filter_programs",
+  label = "Select Program(s):",
+  choices = sort(unique(data$program_group)),
+  selected = unique(data$program_group),
+  multiple = TRUE
+)
+```
+
+```{r}
+#| label: programs-reactive-inputs
+#| context: interactive
+
+# This is the reactive expression for the Programs tab
+filtered_data_programs <- reactive({
+  data %>%
+    filter(
+      fiscal_quarter %in% input$fiscal_quarter_programs,
+      program_group %in% input$program_filter_programs
+    )
+})
+
+# Reactive expression for the funding data
+filtered_funding <- reactive({
+  funding_data %>%
+    filter(fiscal_quarter %in% input$fiscal_quarter)
+})
+```
+
+## Row {height="20%"}
+
+### Column {width = "30%"}
+
+```{r}
+#| label: valuebox-total
+#| content: valuebox
+
+# Calculate Overall Applications
+renderValueBox({
+  total_applications <- nrow(filtered_data_programs())
+  valueBox(
+    value = total_applications,
+    caption = "Total Applications",
+    icon = "fa-solid fa-file-invoice",
+    color = "primary"
+  )
+})
+```
+
+### Column {width = "30%"}
+
+```{r}
+#| label: valuebox-approval-rate
+#| content: valuebox
+
+# Calculate Approval %
+renderValueBox({
+  approved_applications <- filtered_data_programs() %>% filter(status == "Approved")
+  if (nrow(filtered_data_programs()) > 0) {
+    approval_rate <- nrow(approved_applications) / nrow(filtered_data_programs()) * 100
+  } else {
+    approval_rate <- 0
+  }
+  valueBox(
+    value = paste0(round(approval_rate, 1), "%"),
+    caption = "Approval Rate",
+    icon = "fa-solid fa-check-to-slot",
+    color = "success"
+  )
+})
+```
+
+### Column {width = "30%"}
+
+```{r}
+#| label: valuebox-funding
+#| content: valuebox
+
+# Calculate Total Funding
+renderValueBox({
+  total_funding <- sum(filtered_funding()$amount_approved, na.rm = TRUE)
+  valueBox(
+    value = paste0("$", formatC(total_funding, format = "f", big.mark = ",", digits = 0)),
+    caption = "Total Funding",
+    icon = "fa-solid fa-dollar-sign",
+    color = "info"
+  )
+})
+```
+
+## Row {height="40%"}
+
+
+
+## Row {height="40%"}
+
+```{r}
+#| eval: false
+renderPlot({
+  plot_data <- filtered_data_programs() %>%
+    count(program_group)
+  
+  if (nrow(plot_data) > 0) {
+    ggplot(plot_data, aes(x = program_group, y = n)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(
+        title = "Title",
+        x = "Programs",
+        y = "Number of Applications"
+      ) +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  }
+})
+```
+
+## Row {height="40%"}
+
+```{r}
+renderDT({
+  filtered_data_programs() %>%
+  datatable(options = list(pageLength = 10))
+})
+```
+
+selectizeInput(
+  inputId = "represented_status_filter",
+  label = "Select Representation Status:",
+  choices = sort(unique(data$represented_status)),
+  selected = unique(data$represented_status),
+  multiple = TRUE
+)
+
+selectizeInput(
+  inputId = "race_filter",
+  label = "Select Race:",
+  choices = sort(unique(data$race_group)),
+  selected = unique(data$race_group),
+  multiple = TRUE
+)
+
+selectizeInput(
+  inputId = "gender_filter",
+  label = "Select Gender Identity:",
+  choices = sort(unique(data$gender_group)),
+  selected = unique(data$gender_group),
+  multiple = TRUE
+)

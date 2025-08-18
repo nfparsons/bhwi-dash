@@ -94,29 +94,66 @@ showtext::showtext_auto()
 # googlesheets4::gs4_deauth()
 
 # Authenticate with Google Drive & Google Sheets
-googlesheets4::gs4_auth()
-
+# googlesheets4::gs4_auth()
 
 # =============================================================================
 # 3. DATA PROCESSING
 # =============================================================================
 
-sheets_url <- "https://docs.google.com/spreadsheets/d/1lRMyvGBAXcUaQtmBxXDFyrs889L505OFRRyvC0zQJtg/edit?usp=drive_link"
-my_sheet <- googledrive::drive_get(sheets_url)
+# sheets_url <- "https://docs.google.com/spreadsheets/d/1lRMyvGBAXcUaQtmBxXDFyrs889L505OFRRyvC0zQJtg/edit?usp=drive_link"
+# my_sheet <- googledrive::drive_get(sheets_url)
 
-raw_data <- googlesheets4::read_sheet(my_sheet) %>%
+# raw_data <- googlesheets4::read_sheet(my_sheet) %>%
+#     mutate(
+#         Race = str_replace(
+#             Race,
+#             "Black of African American",
+#             "Black or African American"
+#         )
+#     )
+
+raw_data <- rio::import(
+    "data/_Funding Request (Responses) and Tracker(BH Workforce Initiative Funding Request Form).xlsx",
+    sheet = "Form Responses 1"
+) %>%
+    janitor::clean_names() %>%
     mutate(
-        Race = str_replace(
-            Race,
+        race = str_replace(
+            race,
             "Black of African American",
             "Black or African American"
+        ),
+        # Use parse_date_time for flexible date parsing
+        date = coalesce(
+            lubridate::mdy_hms(timestamp),
+            lubridate::ymd_hms(timestamp)
+        ),
+        # Clean the `how_much_money...` column by removing non-numeric characters
+        amount_requested = case_when(
+            str_detect(
+                how_much_money_are_you_requesting_what_is_the_cost_of_this_service,
+                "Registration"
+            ) ~
+                sum(
+                    as.numeric(str_extract_all(
+                        how_much_money_are_you_requesting_what_is_the_cost_of_this_service,
+                        "\\d+\\.?\\d*"
+                    )[[1]]),
+                    na.rm = TRUE
+                ),
+            TRUE ~
+                as.numeric(gsub(
+                    "[^0-9.]",
+                    "",
+                    how_much_money_are_you_requesting_what_is_the_cost_of_this_service
+                ))
         )
     )
 
 program_clean <- raw_data %>%
     mutate(
         program_clean = str_trim(str_extract(
-            `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+            `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
             "^[^,]+"
         ))
     ) %>%
@@ -125,7 +162,7 @@ program_clean <- raw_data %>%
 top_9_programs <- raw_data %>%
     mutate(
         program_clean = str_trim(str_extract(
-            `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+            `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
             "^[^,]+"
         ))
     ) %>%
@@ -135,7 +172,7 @@ top_9_programs <- raw_data %>%
     pull(program_clean)
 
 top_5_races <- raw_data %>%
-    mutate(race_clean = str_trim(str_extract(`Race`, "^[^,]+"))) %>%
+    mutate(race_clean = str_trim(str_extract(`race`, "^[^,]+"))) %>%
     count(race_clean) %>%
     arrange(desc(n)) %>%
     slice(1:5) %>%
@@ -143,7 +180,7 @@ top_5_races <- raw_data %>%
 
 top_5_genders <- raw_data %>%
     mutate(
-        gender_clean = str_trim(str_extract(`Gender Identity`, "^[^,]+"))
+        gender_clean = str_trim(str_extract(`gender_identity`, "^[^,]+"))
     ) %>%
     count(gender_clean) %>%
     arrange(desc(n)) %>%
@@ -153,7 +190,7 @@ top_5_genders <- raw_data %>%
 top_5_orientations <- raw_data %>%
     mutate(
         orientation_clean = str_trim(str_extract(
-            `Sexual Orientation`,
+            `sexual_orientation`,
             "^[^,]+"
         ))
     ) %>%
@@ -164,7 +201,6 @@ top_5_orientations <- raw_data %>%
 
 data <- raw_data %>%
     mutate(
-        date = as.Date(Timestamp),
         fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
         fiscal_quarter = factor(
             paste0(
@@ -182,69 +218,79 @@ data <- raw_data %>%
         ),
         program_group = if_else(
             str_trim(str_extract(
-                `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+                `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
                 "^[^,]+"
             )) %in%
                 top_9_programs,
             str_trim(str_extract(
-                `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+                `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
                 "^[^,]+"
             )),
             "Other"
         ),
         race_group = if_else(
-            str_trim(str_extract(`Race`, "^[^,]+")) %in% top_5_races,
-            str_trim(str_extract(`Race`, "^[^,]+")),
+            str_trim(str_extract(`race`, "^[^,]+")) %in% top_5_races,
+            str_trim(str_extract(`race`, "^[^,]+")),
             "Other"
         ),
         gender_group = if_else(
-            str_trim(str_extract(`Gender Identity`, "^[^,]+")) %in%
+            str_trim(str_extract(`gender_identity`, "^[^,]+")) %in%
                 top_5_genders,
-            str_trim(str_extract(`Gender Identity`, "^[^,]+")),
+            str_trim(str_extract(`gender_identity`, "^[^,]+")),
             "Other"
         ),
         sexual_orientation_group = if_else(
-            str_trim(str_extract(`Sexual Orientation`, "^[^,]+")) %in%
+            str_trim(str_extract(`sexual_orientation`, "^[^,]+")) %in%
                 top_5_orientations,
-            str_trim(str_extract(`Sexual Orientation`, "^[^,]+")),
+            str_trim(str_extract(`sexual_orientation`, "^[^,]+")),
             "Other"
         )
     ) %>%
     filter(!is.na(date)) %>%
     select(
-        status = `Approval Status`,
+        status = approval_status,
         date,
         fiscal_quarter,
-        race = `Race`,
+        race,
         race_group,
-        gender_identity = `Gender Identity`,
+        gender_identity,
         gender_group,
-        sexual_orientation = `Sexual Orientation`,
+        sexual_orientation,
         sexual_orientation_group,
-        funding_for = `Please select the item you are requesting funding for:`,
-        program = `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+        funding_for = please_select_the_item_you_are_requesting_funding_for,
+        program = which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit,
         program_group,
-        managers_approval = `Have you received your supervisor's or manager's approval for this request?`,
-        represented_status = `Union/Representation Status of staff receiving/using the funding`,
-        amount_approved = `Amount Approved`
+        managers_approval = have_you_received_your_supervisors_or_managers_approval_for_this_request,
+        represented_status = union_representation_status_of_staff_receiving_using_the_funding,
+        amount_requested,
+        amount_approved
     )
 
-funding <- googlesheets4::read_sheet(
-    my_sheet,
+
+funding <- rio::import(
+    "data/_Funding Request (Responses) and Tracker(BH Workforce Initiative Funding Request Form).xlsx",
     sheet = "Funding Tracking",
-    range = "A5:E",
-    col_types = "ccccn"
+    skip = 4,
+    col_types = c(
+        "date", # Date Funding was approved or Invoice received
+        "text", # Staff using funding
+        "text", # Represented Status
+        "text", # Approved for
+        "numeric", # Amount Approved
+        rep("skip", 22) # Skip the remaining 22 columns
+    )
 ) %>%
+    janitor::clean_names() %>%
     select(
-        date = `Date Funding was approved or Invoice received`,
-        staff = `Staff using funding`,
-        represented_status = `Represented Status`,
-        approved_for = `Approved for`,
-        amount_approved = `Amount Approved`
+        date = `date_funding_was_approved_or_invoice_received`,
+        staff = `staff_using_funding`,
+        represented_status = `represented_status`,
+        approved_for = `approved_for`,
+        amount_approved = `amount_approved`
     ) %>%
     filter(!is.na(date)) %>%
     mutate(
-        date = mdy(date),
+        date = lubridate::mdy(date),
         fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
         fiscal_quarter = factor(
             paste0(

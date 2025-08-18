@@ -90,9 +90,12 @@ showtext::showtext_auto()
 # 2. GOOGLE SHEETS AUTHENTICATION
 # =============================================================================
 
-googledrive::drive_auth(
-    scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
-)
+# Clear token cache
+# googlesheets4::gs4_deauth()
+
+# Authenticate with Google Drive & Google Sheets
+googlesheets4::gs4_auth()
+
 
 # =============================================================================
 # 3. DATA PROCESSING

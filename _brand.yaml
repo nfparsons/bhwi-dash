@@ -1,0 +1,12 @@
+meta:
+  name: "BHWI Report Branding"
+  description: "Custom branding for the BHWI Report Dashboard"
+
+color:
+  palette:
+    brand_blue: "#326195"
+    brand_green: "#48772C"
+    brand_rose: "#9b6167"
+  primary: brand_blue
+  success: brand_green
+  secondary: brand_rose

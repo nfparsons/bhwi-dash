@@ -1,0 +1,44 @@
+/* Custom styling for the flexdashboard::valueBox */
+
+/* Applies custom background colors based on our wrapper classes */
+.bg-color-1 .value-box-main {
+  background-color: #326195 !important;
+}
+.bg-color-2 .value-box-main {
+  background-color: #48772C !important;
+}
+.bg-color-3 .value-box-main {
+  background-color: #9b6167 !important;
+}
+
+/* Styles the text and icons to be white for better visibility on the colored backgrounds */
+.value-box-main .value,
+.value-box-main .caption,
+.value-box-main .icon {
+  color: #FFFFFF !important;
+}
+
+/* Applies rounded corners and a subtle shadow to all value boxes */
+.value-box-main {
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s; /* Creates a smooth hover animation */
+}
+
+/* Lifts the box and darkens the shadow when you hover over it */
+.value-box-main:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-5px);
+}
+
+/* Increases the size of the text and icons for a more prominent look */
+.value-box-main .value {
+  font-size: 2.5em;
+  font-weight: bold;
+}
+.value-box-main .caption {
+  font-size: 1.2em;
+}
+.value-box-main .icon {
+  font-size: 3em;
+}

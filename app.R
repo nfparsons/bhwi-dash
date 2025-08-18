@@ -31,7 +31,7 @@ p_load(
     treemap,
     tidyverse,
     janitor,
-    bslib, 
+    bslib,
     bsicons
 )
 
@@ -87,21 +87,45 @@ perma_list <- c(
 showtext::showtext_auto()
 
 # =============================================================================
-# 2. DATA PROCESSING (FROM QUARTO DATA CHUNK)
+# 2. GOOGLE SHEETS AUTHENTICATION
+# =============================================================================
+
+googledrive::drive_auth(
+    scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
+)
+
+# =============================================================================
+# 3. DATA PROCESSING
 # =============================================================================
 
 sheets_url <- "https://docs.google.com/spreadsheets/d/1lRMyvGBAXcUaQtmBxXDFyrs889L505OFRRyvC0zQJtg/edit?usp=drive_link"
 my_sheet <- googledrive::drive_get(sheets_url)
 
 raw_data <- googlesheets4::read_sheet(my_sheet) %>%
-    mutate(Race = str_replace(Race, "Black of African American", "Black or African American"))
+    mutate(
+        Race = str_replace(
+            Race,
+            "Black of African American",
+            "Black or African American"
+        )
+    )
 
 program_clean <- raw_data %>%
-    mutate(program_clean = str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+"))) %>%
+    mutate(
+        program_clean = str_trim(str_extract(
+            `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+            "^[^,]+"
+        ))
+    ) %>%
     pull(program_clean)
 
 top_9_programs <- raw_data %>%
-    mutate(program_clean = str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+"))) %>%
+    mutate(
+        program_clean = str_trim(str_extract(
+            `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+            "^[^,]+"
+        ))
+    ) %>%
     count(program_clean) %>%
     arrange(desc(n)) %>%
     slice(1:9) %>%
@@ -115,14 +139,21 @@ top_5_races <- raw_data %>%
     pull(race_clean)
 
 top_5_genders <- raw_data %>%
-    mutate(gender_clean = str_trim(str_extract(`Gender Identity`, "^[^,]+"))) %>%
+    mutate(
+        gender_clean = str_trim(str_extract(`Gender Identity`, "^[^,]+"))
+    ) %>%
     count(gender_clean) %>%
     arrange(desc(n)) %>%
     slice(1:5) %>%
     pull(gender_clean)
 
 top_5_orientations <- raw_data %>%
-    mutate(orientation_clean = str_trim(str_extract(`Sexual Orientation`, "^[^,]+"))) %>%
+    mutate(
+        orientation_clean = str_trim(str_extract(
+            `Sexual Orientation`,
+            "^[^,]+"
+        ))
+    ) %>%
     count(orientation_clean) %>%
     arrange(desc(n)) %>%
     slice(1:5) %>%
@@ -133,12 +164,29 @@ data <- raw_data %>%
         date = as.Date(Timestamp),
         fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
         fiscal_quarter = factor(
-            paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)),
-            levels = unique(paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)))
+            paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ),
+            levels = unique(paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ))
         ),
         program_group = if_else(
-            str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+")) %in% top_9_programs,
-            str_trim(str_extract(`Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`, "^[^,]+")),
+            str_trim(str_extract(
+                `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+                "^[^,]+"
+            )) %in%
+                top_9_programs,
+            str_trim(str_extract(
+                `Which program do you work in, or which program will this funding support? If it is funding for/training for multiple programs, please select all that apply. If it is funding for/training for an entire unit, just select that unit.`,
+                "^[^,]+"
+            )),
             "Other"
         ),
         race_group = if_else(
@@ -147,12 +195,14 @@ data <- raw_data %>%
             "Other"
         ),
         gender_group = if_else(
-            str_trim(str_extract(`Gender Identity`, "^[^,]+")) %in% top_5_genders,
+            str_trim(str_extract(`Gender Identity`, "^[^,]+")) %in%
+                top_5_genders,
             str_trim(str_extract(`Gender Identity`, "^[^,]+")),
             "Other"
         ),
         sexual_orientation_group = if_else(
-            str_trim(str_extract(`Sexual Orientation`, "^[^,]+")) %in% top_5_orientations,
+            str_trim(str_extract(`Sexual Orientation`, "^[^,]+")) %in%
+                top_5_orientations,
             str_trim(str_extract(`Sexual Orientation`, "^[^,]+")),
             "Other"
         )
@@ -176,10 +226,12 @@ data <- raw_data %>%
         amount_approved = `Amount Approved`
     )
 
-funding <- googlesheets4::read_sheet(my_sheet,
-                                     sheet = "Funding Tracking",
-                                     range = "A5:E",
-                                     col_types = "ccccn") %>%
+funding <- googlesheets4::read_sheet(
+    my_sheet,
+    sheet = "Funding Tracking",
+    range = "A5:E",
+    col_types = "ccccn"
+) %>%
     select(
         date = `Date Funding was approved or Invoice received`,
         staff = `Staff using funding`,
@@ -192,78 +244,90 @@ funding <- googlesheets4::read_sheet(my_sheet,
         date = mdy(date),
         fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
         fiscal_quarter = factor(
-            paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)),
-            levels = unique(paste0("FY", fiscal_year_calc, " Q", quarter(date, fiscal_start = 7)))
+            paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ),
+            levels = unique(paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ))
         )
     )
 
 # =============================================================================
-# 3. UI DEFINITION
+# 4. UI DEFINITION
 # =============================================================================
 
 ui <- fluidPage(
-    
     theme = bslib::bs_theme(
         version = 5,
         bootswatch = "cosmo"
     ),
-    
+
     titlePanel("BHWI Report Dashboard"),
-    
+
     sidebarLayout(
         sidebarPanel(
             selectizeInput(
                 inputId = "fiscal_quarter",
                 label = "Select Fiscal Quarter(s):",
-                choices = c("All", as.character(sort(unique(data$fiscal_quarter)))),
+                choices = c(
+                    "All",
+                    as.character(sort(unique(data$fiscal_quarter)))
+                ),
                 selected = "All",
                 multiple = TRUE
             )
         ),
-        
+
         mainPanel(
             fluidRow(
-                column(4,
-                       bslib::value_box(
-                           title = "Total Applications",
-                           value = textOutput("valuebox_total"),
-                           showcase = bsicons::bs_icon("file-text"),
-                           theme = "primary"
-                       )
+                column(
+                    4,
+                    bslib::value_box(
+                        title = "Total Applications",
+                        value = textOutput("valuebox_total"),
+                        showcase = bsicons::bs_icon("file-text"),
+                        theme = "primary"
+                    )
                 ),
-                column(4,
-                       bslib::value_box(
-                           title = "Approval Rate",
-                           value = textOutput("valuebox_approval_rate"),
-                           showcase = bsicons::bs_icon("check-square"),
-                           theme = "success"
-                       )
+                column(
+                    4,
+                    bslib::value_box(
+                        title = "Approval Rate",
+                        value = textOutput("valuebox_approval_rate"),
+                        showcase = bsicons::bs_icon("check-square"),
+                        theme = "success"
+                    )
                 ),
-                column(4,
-                       bslib::value_box(
-                           title = "Total Funding",
-                           value = textOutput("valuebox_funding"),
-                           showcase = bsicons::bs_icon("currency-dollar"),
-                           theme = "secondary"
-                       )
+                column(
+                    4,
+                    bslib::value_box(
+                        title = "Total Funding",
+                        value = textOutput("valuebox_funding"),
+                        showcase = bsicons::bs_icon("currency-dollar"),
+                        theme = "secondary"
+                    )
                 )
             ),
-            
+
             fluidRow(
-                column(12,
-                       plotOutput("chart-approved")
-                )
+                column(12, plotOutput("chart-approved"))
             )
         )
     )
 )
 
 # =============================================================================
-# 4. SERVER LOGIC
+# 5. SERVER LOGIC
 # =============================================================================
 
 server <- function(input, output, session) {
-    
     data_filtered <- reactive({
         req(input$fiscal_quarter)
         if ("All" %in% input$fiscal_quarter) {
@@ -273,7 +337,7 @@ server <- function(input, output, session) {
                 filter(fiscal_quarter %in% input$fiscal_quarter)
         }
     })
-    
+
     funding_filtered <- reactive({
         req(input$fiscal_quarter)
         if ("All" %in% input$fiscal_quarter) {
@@ -283,42 +347,54 @@ server <- function(input, output, session) {
                 filter(fiscal_quarter %in% input$fiscal_quarter)
         }
     })
-    
+
     # We now render the dynamic value for the textOutput
     output$valuebox_total <- shiny::renderText({
         total_applications <- nrow(data_filtered())
         total_applications
     })
-    
+
     output$valuebox_approval_rate <- shiny::renderText({
-        approved_applications <- data_filtered() %>% filter(status == "Approved")
+        approved_applications <- data_filtered() %>%
+            filter(status == "Approved")
         if (nrow(data_filtered()) > 0) {
-            approval_rate <- nrow(approved_applications) / nrow(data_filtered()) * 100
+            approval_rate <- nrow(approved_applications) /
+                nrow(data_filtered()) *
+                100
         } else {
             approval_rate <- 0
         }
         paste0(round(approval_rate, 1), "%")
     })
-    
+
     output$valuebox_funding <- shiny::renderText({
         total_funding <- sum(funding_filtered()$amount_approved, na.rm = TRUE)
-        paste0("$", formatC(total_funding, format = "f", big.mark = ",", digits = 0))
+        paste0(
+            "$",
+            formatC(total_funding, format = "f", big.mark = ",", digits = 0)
+        )
     })
-    
+
     output$`chart-approved` <- renderPlot({
         approved_data <- data_filtered() %>%
             filter(status == "Approved") %>%
             mutate(
                 program_abb = case_when(
-                    program_group == "Adult Protective Services and Risk Case Management" ~ "APS&RCM",
+                    program_group ==
+                        "Adult Protective Services and Risk Case Management" ~
+                        "APS&RCM",
                     program_group == "Call Center/Crisis Services" ~ "CC/CS",
-                    program_group == "CMHP - Safety Net Services Unit" ~ "CMHP: SNS",
+                    program_group == "CMHP - Safety Net Services Unit" ~
+                        "CMHP: SNS",
                     program_group == "Direct Clinical Services Unit" ~ "DCS",
-                    program_group == "Early Assessment and Support Alliance (EASA)" ~ "EASA",
+                    program_group ==
+                        "Early Assessment and Support Alliance (EASA)" ~
+                        "EASA",
                     program_group == "Early Childhood Services (EC)" ~ "EC",
                     program_group == "Other" ~ "Other",
                     program_group == "Quality Management Unit" ~ "QM",
-                    program_group == "School Based Mental Health (SBMH)" ~ "SBMH",
+                    program_group == "School Based Mental Health (SBMH)" ~
+                        "SBMH",
                     program_group == "Wraparound" ~ "Wrap"
                 )
             ) %>%
@@ -326,10 +402,14 @@ server <- function(input, output, session) {
             summarise(count = n(), .groups = 'drop') %>%
             mutate(total_count = sum(count)) %>%
             mutate(percentage = (count / total_count) * 100) %>%
-            mutate(program_pct = str_glue("{program_abb} \n({round(percentage, 1)}%)")) %>%
+            mutate(
+                program_pct = str_glue(
+                    "{program_abb} \n({round(percentage, 1)}%)"
+                )
+            ) %>%
             select(-total_count) %>%
             filter(count > 0)
-        
+
         treemap(
             dtf = approved_data,
             index = "program_pct",
@@ -337,8 +417,16 @@ server <- function(input, output, session) {
             type = "index",
             title = "Application Approvals by Program",
             palette = adjustcolor(
-                col = c("#326195", "#48773C", "#8C183E", "#F79232", "#9b6167", "#72CCD4"),
-                alpha.f = 0.6),
+                col = c(
+                    "#326195",
+                    "#48773C",
+                    "#8C183E",
+                    "#F79232",
+                    "#9b6167",
+                    "#72CCD4"
+                ),
+                alpha.f = 0.6
+            ),
             border.col = "white",
             border.lwds = 2,
             fontsize.labels = 14,

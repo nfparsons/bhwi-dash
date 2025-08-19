@@ -365,8 +365,23 @@ ui <- fluidPage(
                 )
             ),
 
-            fluidRow(
-                column(12, plotOutput("chart-approved"))
+            hr(), # Add a horizontal line to separate value boxes from the plots
+
+            tabsetPanel(
+                id = "demographicTabs",
+                type = "tabs",
+                tabPanel(
+                    "Race",
+                    plotOutput("race_chart")
+                ),
+                tabPanel(
+                    "Gender",
+                    plotOutput("gender_chart")
+                ),
+                tabPanel(
+                    "Sexual Orientation",
+                    plotOutput("orientation_chart")
+                )
             )
         )
     )
@@ -377,6 +392,7 @@ ui <- fluidPage(
 # =============================================================================
 
 server <- function(input, output, session) {
+    # Existing data_filtered and funding_filtered reactives...
     data_filtered <- reactive({
         req(input$fiscal_quarter)
         if ("All" %in% input$fiscal_quarter) {
@@ -397,7 +413,7 @@ server <- function(input, output, session) {
         }
     })
 
-    # We now render the dynamic value for the textOutput
+    # Existing value box outputs...
     output$valuebox_total <- shiny::renderText({
         total_applications <- nrow(data_filtered())
         total_applications
@@ -424,69 +440,93 @@ server <- function(input, output, session) {
         )
     })
 
-    output$`chart-approved` <- renderPlot({
-        approved_data <- data_filtered() %>%
-            filter(status == "Approved") %>%
-            mutate(
-                program_abb = case_when(
-                    program_group ==
-                        "Adult Protective Services and Risk Case Management" ~
-                        "APS&RCM",
-                    program_group == "Call Center/Crisis Services" ~ "CC/CS",
-                    program_group == "CMHP - Safety Net Services Unit" ~
-                        "CMHP: SNS",
-                    program_group == "Direct Clinical Services Unit" ~ "DCS",
-                    program_group ==
-                        "Early Assessment and Support Alliance (EASA)" ~
-                        "EASA",
-                    program_group == "Early Childhood Services (EC)" ~ "EC",
-                    program_group == "Other" ~ "Other",
-                    program_group == "Quality Management Unit" ~ "QM",
-                    program_group == "School Based Mental Health (SBMH)" ~
-                        "SBMH",
-                    program_group == "Wraparound" ~ "Wrap"
-                )
-            ) %>%
-            group_by(program_abb) %>%
-            summarise(count = n(), .groups = 'drop') %>%
-            mutate(total_count = sum(count)) %>%
-            mutate(percentage = (count / total_count) * 100) %>%
-            mutate(
-                program_pct = str_glue(
-                    "{program_abb} \n({round(percentage, 1)}%)"
-                )
-            ) %>%
-            select(-total_count) %>%
-            filter(count > 0)
+    # Prepare data for the demographic charts
+    demographic_data <- reactive({
+        req(input$demographicTabs)
+        data_to_plot <- data_filtered() %>%
+            filter(status == "Approved")
 
-        treemap(
-            dtf = approved_data,
-            index = "program_pct",
-            vSize = "count",
-            type = "index",
-            title = "Application Approvals by Program",
-            palette = adjustcolor(
-                col = c(
-                    "#326195",
-                    "#48773C",
-                    "#8C183E",
-                    "#F79232",
-                    "#9b6167",
-                    "#72CCD4"
-                ),
-                alpha.f = 0.6
-            ),
-            border.col = "white",
-            border.lwds = 2,
-            fontsize.labels = 14,
-            fontcolor.labels = "white",
-            fontface.labels = 2,
-            fontfamily.labels = "sans",
-            bg.labels = "transparent",
-            align.labels = c("center", "center"),
-            inflate.labels = FALSE,
-            aspRatio = 1.5
-        )
+        if (input$demographicTabs == "Race") {
+            data_to_plot %>%
+                count(race_group) %>%
+                mutate(total_count = sum(n)) %>%
+                mutate(
+                    percentage = (n / total_count) * 100,
+                    label = str_glue("{race_group} ({round(percentage, 1)}%)")
+                ) %>%
+                arrange(desc(n))
+        } else if (input$demographicTabs == "Gender") {
+            data_to_plot %>%
+                count(gender_group) %>%
+                mutate(total_count = sum(n)) %>%
+                mutate(
+                    percentage = (n / total_count) * 100,
+                    label = str_glue("{gender_group} ({round(percentage, 1)}%)")
+                ) %>%
+                arrange(desc(n))
+        } else if (input$demographicTabs == "Sexual Orientation") {
+            data_to_plot %>%
+                count(sexual_orientation_group) %>%
+                mutate(total_count = sum(n)) %>%
+                mutate(
+                    percentage = (n / total_count) * 100,
+                    label = str_glue(
+                        "{sexual_orientation_group} ({round(percentage, 1)}%)"
+                    )
+                ) %>%
+                arrange(desc(n))
+        }
+    })
+
+    # Create a reusable function for the ggplot chart
+    create_bar_chart <- function(data_input) {
+        ggplot(data_input, aes(x = reorder(label, n), y = n)) +
+            geom_bar(stat = "identity", fill = mchd_county_logo_blue) +
+            geom_text(
+                aes(label = n),
+                vjust = -0.5,
+                size = 5,
+                color = mchd_county_logo_blue
+            ) +
+            labs(
+                title = "Application Approvals by Demographic Group",
+                x = "",
+                y = "Number of Approved Applications"
+            ) +
+            theme_minimal() +
+            theme(
+                axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+                axis.text.y = element_blank(),
+                axis.title.y = element_blank(),
+                panel.grid.major.x = element_blank(),
+                panel.grid.minor.y = element_blank(),
+                plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
+            )
+    }
+
+    # Render the plots for each tab
+    output$race_chart <- renderPlot({
+        data_to_plot <- demographic_data() %>%
+            filter(race_group != "Other")
+
+        create_bar_chart(data_to_plot) +
+            labs(title = "Application Approvals by Race")
+    })
+
+    output$gender_chart <- renderPlot({
+        data_to_plot <- demographic_data() %>%
+            filter(gender_group != "Other")
+
+        create_bar_chart(data_to_plot) +
+            labs(title = "Application Approvals by Gender")
+    })
+
+    output$orientation_chart <- renderPlot({
+        data_to_plot <- demographic_data() %>%
+            filter(sexual_orientation_group != "Other")
+
+        create_bar_chart(data_to_plot) +
+            labs(title = "Application Approvals by Sexual Orientation")
     })
 }
 

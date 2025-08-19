@@ -455,10 +455,8 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    label = str_wrap(
-                        str_glue("{race_group} ({round(percentage, 1)}%)"),
-                        width = 20
-                    )
+                    label = str_glue("{race_group} ({round(percentage, 1)}%)"),
+                    bar_label = n
                 ) %>%
                 arrange(desc(n))
         } else if (input$demographicTabs == "Gender") {
@@ -467,10 +465,10 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    label = str_wrap(
-                        str_glue("{gender_group} ({round(percentage, 1)}%)"),
-                        width = 20
-                    )
+                    label = str_glue(
+                        "{gender_group} ({round(percentage, 1)}%)"
+                    ),
+                    bar_label = n
                 ) %>%
                 arrange(desc(n))
         } else if (input$demographicTabs == "Sexual Orientation") {
@@ -479,12 +477,10 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    label = str_wrap(
-                        str_glue(
-                            "{sexual_orientation_group} ({round(percentage, 1)}%)"
-                        ),
-                        width = 20
-                    )
+                    label = str_glue(
+                        "{sexual_orientation_group} ({round(percentage, 1)}%)"
+                    ),
+                    bar_label = n
                 ) %>%
                 arrange(desc(n))
         } else if (input$demographicTabs == "Program") {
@@ -493,13 +489,13 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    # Wrap the program group name and add percentage
                     label = str_wrap(
                         str_glue(
                             "{program_group} \n({round(percentage, 1)}%)"
                         ),
                         width = 20
-                    )
+                    ),
+                    bar_label = n
                 ) %>%
                 arrange(desc(n))
         }
@@ -514,7 +510,7 @@ server <- function(input, output, session) {
         ggplot(data_input, aes(x = n, y = fct_reorder(label, n))) +
             geom_bar(stat = "identity", fill = mchd_county_logo_blue) +
             geom_text(
-                aes(label = n),
+                aes(label = bar_label),
                 hjust = -0.5,
                 size = 5,
                 color = mchd_county_logo_blue

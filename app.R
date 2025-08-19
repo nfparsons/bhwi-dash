@@ -484,8 +484,12 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    label = str_glue(
-                        "{program_group} \n({round(percentage, 1)}%)"
+                    # Wrap the program group name and add percentage
+                    label = str_wrap(
+                        str_glue(
+                            "{program_group} \n({round(percentage, 1)}%)"
+                        ),
+                        width = 20
                     )
                 ) %>%
                 arrange(desc(n))
@@ -494,6 +498,10 @@ server <- function(input, output, session) {
 
     # Create a reusable function for the ggplot chart
     create_bar_chart <- function(data_input) {
+        # Calculate a dynamic x-axis limit for the plot
+        max_count <- max(data_input$n)
+        x_limit <- max_count * 1.1 # Add a 10% buffer
+
         ggplot(data_input, aes(x = n, y = fct_reorder(label, n))) +
             geom_bar(stat = "identity", fill = mchd_county_logo_blue) +
             geom_text(
@@ -510,10 +518,18 @@ server <- function(input, output, session) {
             theme_minimal() +
             theme(
                 axis.text.x = element_blank(),
+                axis.text.y = element_text(lineheight = 1.2),
                 panel.grid.major.x = element_blank(),
                 panel.grid.minor.y = element_blank(),
-                plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
-            )
+                plot.title = element_text(
+                    hjust = 0.5,
+                    size = 16,
+                    face = "bold"
+                ),
+                plot.margin = margin(t = 20, r = 50, b = 20, l = 20)
+            ) +
+            # Extend the x-axis to make sure labels fit
+            coord_cartesian(xlim = c(0, x_limit), clip = "off")
     }
 
     # Render the plots for each tab

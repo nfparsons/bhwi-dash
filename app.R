@@ -371,16 +371,20 @@ ui <- fluidPage(
                 id = "demographicTabs",
                 type = "tabs",
                 tabPanel(
+                    "Program",
+                    plotOutput("program_chart", height = "600px")
+                ),
+                tabPanel(
                     "Race",
-                    plotOutput("race_chart")
+                    plotOutput("race_chart", height = "600px")
                 ),
                 tabPanel(
                     "Gender",
-                    plotOutput("gender_chart")
+                    plotOutput("gender_chart", height = "600px")
                 ),
                 tabPanel(
                     "Sexual Orientation",
-                    plotOutput("orientation_chart")
+                    plotOutput("orientation_chart", height = "600px")
                 )
             )
         )
@@ -416,7 +420,6 @@ server <- function(input, output, session) {
     # Existing value box outputs...
     output$valuebox_total <- shiny::renderText({
         total_applications <- nrow(data_filtered())
-        total_applications
     })
 
     output$valuebox_approval_rate <- shiny::renderText({
@@ -475,29 +478,38 @@ server <- function(input, output, session) {
                     )
                 ) %>%
                 arrange(desc(n))
+        } else if (input$demographicTabs == "Program") {
+            data_to_plot %>%
+                count(program_group) %>%
+                mutate(total_count = sum(n)) %>%
+                mutate(
+                    percentage = (n / total_count) * 100,
+                    label = str_glue(
+                        "{program_group} \n({round(percentage, 1)}%)"
+                    )
+                ) %>%
+                arrange(desc(n))
         }
     })
 
     # Create a reusable function for the ggplot chart
     create_bar_chart <- function(data_input) {
-        ggplot(data_input, aes(x = reorder(label, n), y = n)) +
+        ggplot(data_input, aes(x = n, y = fct_reorder(label, n))) +
             geom_bar(stat = "identity", fill = mchd_county_logo_blue) +
             geom_text(
                 aes(label = n),
-                vjust = -0.5,
+                hjust = -0.5,
                 size = 5,
                 color = mchd_county_logo_blue
             ) +
             labs(
                 title = "Application Approvals by Demographic Group",
                 x = "",
-                y = "Number of Approved Applications"
+                y = ""
             ) +
             theme_minimal() +
             theme(
-                axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
-                axis.text.y = element_blank(),
-                axis.title.y = element_blank(),
+                axis.text.x = element_blank(),
                 panel.grid.major.x = element_blank(),
                 panel.grid.minor.y = element_blank(),
                 plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
@@ -505,6 +517,14 @@ server <- function(input, output, session) {
     }
 
     # Render the plots for each tab
+    output$program_chart <- renderPlot({
+        data_to_plot <- demographic_data() %>%
+            filter(program_group != "Other")
+
+        create_bar_chart(data_to_plot) +
+            labs(title = "Application Approvals by Program")
+    })
+
     output$race_chart <- renderPlot({
         data_to_plot <- demographic_data() %>%
             filter(race_group != "Other")

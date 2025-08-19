@@ -1,0 +1,206 @@
+---
+title: "Untitled"
+format: html
+---
+
+
+```{r}
+library(rio)
+library(tidyverse)
+
+raw_data <- rio::import(
+    "data/_Funding Request (Responses) and Tracker(BH Workforce Initiative Funding Request Form).xlsx",
+    sheet = "Form Responses 1"
+) %>%
+    janitor::clean_names() %>%
+    mutate(
+        race = str_replace(
+            race,
+            "Black of African American",
+            "Black or African American"
+        ),
+        # Use parse_date_time for flexible date parsing
+        date = coalesce(
+            lubridate::mdy_hms(timestamp),
+            lubridate::ymd_hms(timestamp)
+        ),
+        # Clean the `how_much_money...` column by removing non-numeric characters
+        amount_requested = case_when(
+            str_detect(
+                how_much_money_are_you_requesting_what_is_the_cost_of_this_service,
+                "Registration"
+            ) ~
+                sum(
+                    as.numeric(str_extract_all(
+                        how_much_money_are_you_requesting_what_is_the_cost_of_this_service,
+                        "\\d+\\.?\\d*"
+                    )[[1]]),
+                    na.rm = TRUE
+                ),
+            TRUE ~
+                as.numeric(gsub(
+                    "[^0-9.]",
+                    "",
+                    how_much_money_are_you_requesting_what_is_the_cost_of_this_service
+                ))
+        )
+    )
+
+program_clean <- raw_data %>%
+    mutate(
+        program_clean = str_trim(str_extract(
+            `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
+            "^[^,]+"
+        ))
+    ) %>%
+    pull(program_clean)
+
+top_9_programs <- raw_data %>%
+    mutate(
+        program_clean = str_trim(str_extract(
+            `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
+            "^[^,]+"
+        ))
+    ) %>%
+    count(program_clean) %>%
+    arrange(desc(n)) %>%
+    slice(1:9) %>%
+    pull(program_clean)
+
+top_5_races <- raw_data %>%
+    mutate(race_clean = str_trim(str_extract(`race`, "^[^,]+"))) %>%
+    count(race_clean) %>%
+    arrange(desc(n)) %>%
+    slice(1:5) %>%
+    pull(race_clean)
+
+top_5_genders <- raw_data %>%
+    mutate(
+        gender_clean = str_trim(str_extract(`gender_identity`, "^[^,]+"))
+    ) %>%
+    count(gender_clean) %>%
+    arrange(desc(n)) %>%
+    slice(1:5) %>%
+    pull(gender_clean)
+
+top_5_orientations <- raw_data %>%
+    mutate(
+        orientation_clean = str_trim(str_extract(
+            `sexual_orientation`,
+            "^[^,]+"
+        ))
+    ) %>%
+    count(orientation_clean) %>%
+    arrange(desc(n)) %>%
+    slice(1:5) %>%
+    pull(orientation_clean)
+
+data <- raw_data %>%
+    mutate(
+        fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
+        fiscal_quarter = factor(
+            paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ),
+            levels = unique(paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ))
+        ),
+        program_group = if_else(
+            str_trim(str_extract(
+                `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
+                "^[^,]+"
+            )) %in%
+                top_9_programs,
+            str_trim(str_extract(
+                `which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit`,
+                "^[^,]+"
+            )),
+            "Other"
+        ),
+        race_group = if_else(
+            str_trim(str_extract(`race`, "^[^,]+")) %in% top_5_races,
+            str_trim(str_extract(`race`, "^[^,]+")),
+            "Other"
+        ),
+        gender_group = if_else(
+            str_trim(str_extract(`gender_identity`, "^[^,]+")) %in%
+                top_5_genders,
+            str_trim(str_extract(`gender_identity`, "^[^,]+")),
+            "Other"
+        ),
+        sexual_orientation_group = if_else(
+            str_trim(str_extract(`sexual_orientation`, "^[^,]+")) %in%
+                top_5_orientations,
+            str_trim(str_extract(`sexual_orientation`, "^[^,]+")),
+            "Other"
+        )
+    ) %>%
+    filter(!is.na(date)) %>%
+    select(
+        status = approval_status,
+        date,
+        fiscal_quarter,
+        race,
+        race_group,
+        gender_identity,
+        gender_group,
+        sexual_orientation,
+        sexual_orientation_group,
+        funding_for = please_select_the_item_you_are_requesting_funding_for,
+        program = which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit,
+        program_group,
+        managers_approval = have_you_received_your_supervisors_or_managers_approval_for_this_request,
+        represented_status = union_representation_status_of_staff_receiving_using_the_funding,
+        amount_requested,
+        amount_approved
+    )
+
+
+funding <- rio::import(
+    "data/_Funding Request (Responses) and Tracker(BH Workforce Initiative Funding Request Form).xlsx",
+    sheet = "Funding Tracking",
+    skip = 4,
+    col_types = c(
+        "date", # Date Funding was approved or Invoice received
+        "text", # Staff using funding
+        "text", # Represented Status
+        "text", # Approved for
+        "numeric", # Amount Approved
+        rep("skip", 22) # Skip the remaining 22 columns
+    )
+) %>%
+    janitor::clean_names() %>%
+    select(
+        date = `date_funding_was_approved_or_invoice_received`,
+        staff = `staff_using_funding`,
+        represented_status = `represented_status`,
+        approved_for = `approved_for`,
+        amount_approved = `amount_approved`
+    ) %>%
+    filter(!is.na(date)) %>%
+    mutate(
+        date = lubridate::mdy(date),
+        fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
+        fiscal_quarter = factor(
+            paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ),
+            levels = unique(paste0(
+                "FY",
+                fiscal_year_calc,
+                " Q",
+                quarter(date, fiscal_start = 7)
+            ))
+        )
+    )
+```

@@ -455,7 +455,10 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    label = str_glue("{race_group} ({round(percentage, 1)}%)")
+                    label = str_wrap(
+                        str_glue("{race_group} ({round(percentage, 1)}%)"),
+                        width = 20
+                    )
                 ) %>%
                 arrange(desc(n))
         } else if (input$demographicTabs == "Gender") {
@@ -464,7 +467,10 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    label = str_glue("{gender_group} ({round(percentage, 1)}%)")
+                    label = str_wrap(
+                        str_glue("{gender_group} ({round(percentage, 1)}%)"),
+                        width = 20
+                    )
                 ) %>%
                 arrange(desc(n))
         } else if (input$demographicTabs == "Sexual Orientation") {
@@ -473,8 +479,11 @@ server <- function(input, output, session) {
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
-                    label = str_glue(
-                        "{sexual_orientation_group} ({round(percentage, 1)}%)"
+                    label = str_wrap(
+                        str_glue(
+                            "{sexual_orientation_group} ({round(percentage, 1)}%)"
+                        ),
+                        width = 20
                     )
                 ) %>%
                 arrange(desc(n))

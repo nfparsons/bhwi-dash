@@ -269,6 +269,7 @@ data <- raw_data %>%
         sexual_orientation,
         sexual_orientation_group,
         funding_for = please_select_the_item_you_are_requesting_funding_for,
+        funding_for_group, 
         program = which_program_do_you_work_in_or_which_program_will_this_funding_support_if_it_is_funding_for_training_for_multiple_programs_please_select_all_that_apply_if_it_is_funding_for_training_for_an_entire_unit_just_select_that_unit,
         program_group,
         managers_approval = have_you_received_your_supervisors_or_managers_approval_for_this_request,
@@ -421,7 +422,7 @@ server <- function(input, output, session) {
                 filter(fiscal_quarter %in% input$fiscal_quarter)
         }
     })
-
+    
     funding_filtered <- reactive({
         req(input$fiscal_quarter)
         if ("All" %in% input$fiscal_quarter) {
@@ -431,12 +432,12 @@ server <- function(input, output, session) {
                 filter(fiscal_quarter %in% input$fiscal_quarter)
         }
     })
-
+    
     # Existing value box outputs...
     output$valuebox_total <- shiny::renderText({
         total_applications <- nrow(data_filtered())
     })
-
+    
     output$valuebox_approval_rate <- shiny::renderText({
         approved_applications <- data_filtered() %>%
             filter(status == "Approved")
@@ -449,7 +450,7 @@ server <- function(input, output, session) {
         }
         paste0(round(approval_rate, 1), "%")
     })
-
+    
     output$valuebox_funding <- shiny::renderText({
         total_funding <- sum(funding_filtered()$amount_approved, na.rm = TRUE)
         paste0(
@@ -457,16 +458,17 @@ server <- function(input, output, session) {
             formatC(total_funding, format = "f", big.mark = ",", digits = 0)
         )
     })
-
+    
     # Prepare data for the demographic charts
     demographic_data <- reactive({
         req(input$demographicTabs)
         data_to_plot <- data_filtered() %>%
             filter(status == "Approved")
-
+        
         if (input$demographicTabs == "Race") {
             data_to_plot %>%
                 count(race_group) %>%
+                filter(race_group != "Other") %>%
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
@@ -477,6 +479,7 @@ server <- function(input, output, session) {
         } else if (input$demographicTabs == "Gender") {
             data_to_plot %>%
                 count(gender_group) %>%
+                filter(gender_group != "Other") %>%
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
@@ -489,6 +492,7 @@ server <- function(input, output, session) {
         } else if (input$demographicTabs == "Sexual Orientation") {
             data_to_plot %>%
                 count(sexual_orientation_group) %>%
+                filter(sexual_orientation_group != "Other") %>%
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
@@ -501,6 +505,7 @@ server <- function(input, output, session) {
         } else if (input$demographicTabs == "Program") {
             data_to_plot %>%
                 count(program_group) %>%
+                filter(program_group != "Other") %>%
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
@@ -516,6 +521,7 @@ server <- function(input, output, session) {
         } else if (input$demographicTabs == "Funding Item") {
             data_to_plot %>%
                 count(funding_for_group) %>%
+                filter(funding_for_group != "Other") %>%
                 mutate(total_count = sum(n)) %>%
                 mutate(
                     percentage = (n / total_count) * 100,
@@ -530,13 +536,13 @@ server <- function(input, output, session) {
                 arrange(desc(n))
         }
     })
-
+    
     # Create a reusable function for the ggplot chart
-    create_bar_chart <- function(data_input) {
+    create_bar_chart <- function(data_input, chart_title) {
         # Calculate a dynamic x-axis limit for the plot
         max_count <- max(data_input$n)
         x_limit <- max_count * 1.1 # Add a 10% buffer
-
+        
         ggplot(data_input, aes(x = n, y = fct_reorder(label, n))) +
             geom_bar(stat = "identity", fill = mchd_county_logo_blue) +
             geom_text(
@@ -546,7 +552,7 @@ server <- function(input, output, session) {
                 color = mchd_county_logo_blue
             ) +
             labs(
-                title = "Application Approvals by Demographic Group",
+                title = chart_title, # Use a dynamic title
                 x = "",
                 y = ""
             ) +
@@ -566,38 +572,31 @@ server <- function(input, output, session) {
             # Extend the x-axis to make sure labels fit
             coord_cartesian(xlim = c(0, x_limit), clip = "off")
     }
-
-    # Render the plots for each tab
+    
+    # Render the plots for each tab, now calling the reactive directly
     output$program_chart <- renderPlot({
-        data_to_plot <- demographic_data() %>%
-            filter(program_group != "Other")
-
-        create_bar_chart(data_to_plot) +
-            labs(title = "Application Approvals by Program")
+        data_to_plot <- demographic_data()
+        create_bar_chart(data_to_plot, "Application Approvals by Program")
     })
-
+    
     output$race_chart <- renderPlot({
-        data_to_plot <- demographic_data() %>%
-            filter(race_group != "Other")
-
-        create_bar_chart(data_to_plot) +
-            labs(title = "Application Approvals by Race")
+        data_to_plot <- demographic_data()
+        create_bar_chart(data_to_plot, "Application Approvals by Race")
     })
-
+    
     output$gender_chart <- renderPlot({
-        data_to_plot <- demographic_data() %>%
-            filter(gender_group != "Other")
-
-        create_bar_chart(data_to_plot) +
-            labs(title = "Application Approvals by Gender")
+        data_to_plot <- demographic_data()
+        create_bar_chart(data_to_plot, "Application Approvals by Gender")
     })
-
+    
     output$orientation_chart <- renderPlot({
-        data_to_plot <- demographic_data() %>%
-            filter(sexual_orientation_group != "Other")
-
-        create_bar_chart(data_to_plot) +
-            labs(title = "Application Approvals by Sexual Orientation")
+        data_to_plot <- demographic_data()
+        create_bar_chart(data_to_plot, "Application Approvals by Sexual Orientation")
+    })
+    
+    output$funding_chart <- renderPlot({
+        data_to_plot <- demographic_data()
+        create_bar_chart(data_to_plot, "Application Approvals by Funding Item")
     })
 }
 

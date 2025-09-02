@@ -199,6 +199,12 @@ top_5_orientations <- raw_data %>%
     slice(1:5) %>%
     pull(orientation_clean)
 
+top_9_funding_items <- raw_data %>%
+    count(please_select_the_item_you_are_requesting_funding_for) %>%
+    arrange(desc(n)) %>%
+    slice(1:9) %>%
+    pull(please_select_the_item_you_are_requesting_funding_for)
+
 data <- raw_data %>%
     mutate(
         fiscal_year_calc = if_else(month(date) < 7, year(date), year(date) + 1),
@@ -243,6 +249,11 @@ data <- raw_data %>%
             str_trim(str_extract(`sexual_orientation`, "^[^,]+")) %in%
                 top_5_orientations,
             str_trim(str_extract(`sexual_orientation`, "^[^,]+")),
+            "Other"
+        ), 
+        funding_for_group = if_else(
+            `please_select_the_item_you_are_requesting_funding_for` %in% top_9_funding_items,
+            `please_select_the_item_you_are_requesting_funding_for`,
             "Other"
         )
     ) %>%
@@ -385,6 +396,10 @@ ui <- fluidPage(
                 tabPanel(
                     "Sexual Orientation",
                     plotOutput("orientation_chart", height = "600px")
+                ), 
+                tabPanel(
+                    "Funding Item",
+                    plotOutput("funding_chart", height = "600px")
                 )
             )
         )
@@ -492,6 +507,21 @@ server <- function(input, output, session) {
                     label = str_wrap(
                         str_glue(
                             "{program_group} \n({round(percentage, 1)}%)"
+                        ),
+                        width = 20
+                    ),
+                    bar_label = n
+                ) %>%
+                arrange(desc(n))
+        } else if (input$demographicTabs == "Funding Item") {
+            data_to_plot %>%
+                count(funding_for_group) %>%
+                mutate(total_count = sum(n)) %>%
+                mutate(
+                    percentage = (n / total_count) * 100,
+                    label = str_wrap(
+                        str_glue(
+                            "{funding_for_group} \n({round(percentage, 1)}%)"
                         ),
                         width = 20
                     ),
